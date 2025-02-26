@@ -75,6 +75,29 @@
   color: #555;
 }
 
+.update-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #f0f8ff;
+  border-radius: 8px;
+  border-left: 4px solid #4a90e2;
+}
+
+.update-info p {
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.update-info ul {
+  margin-top: 0.5rem;
+}
+
+.update-info li {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.3rem;
+}
+
 @media (max-width: 600px) {
   .game-modes {
     flex-direction: column;
