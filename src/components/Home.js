@@ -5,7 +5,6 @@ import './Home.css';
 const Home = () => {
   return (
     <div className="home-container">
-      <h1>五子棋游戏</h1>
       <div className="game-modes">
         <Link to="/game" className="mode-button">
           与AI对战
