@@ -35,10 +35,16 @@
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   color: #333;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
 }
 
 .game-board {
   margin-bottom: 2rem;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .reset-button {
@@ -55,4 +61,32 @@
 
 .reset-button:hover {
   background-color: #388e3c;
+}
+
+/* 移动端优化 */
+@media (max-width: 480px) {
+  .game-container {
+    padding: 0.5rem;
+  }
+  
+  .game-container h2 {
+    font-size: 1.5rem;
+  }
+  
+  .game-status {
+    font-size: 1rem;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .reset-button {
+    padding: 0.6rem 1.2rem;
+  }
+}
+
+/* 平板优化 */
+@media (min-width: 481px) and (max-width: 768px) {
+  .game-container h2 {
+    font-size: 1.8rem;
+  }
 } 

@@ -7,7 +7,7 @@ const Home = () => {
     <div className="home-container">
       <h1>五子棋游戏</h1>
       <div className="game-modes">
-        <Link to="/ai" className="mode-button">
+        <Link to="/game" className="mode-button">
           与AI对战
         </Link>
         <Link to="/multiplayer" className="mode-button">

@@ -1,7 +1,9 @@
 import { io } from 'socket.io-client';
 
-// 服务器URL，部署时需要替换为实际的服务器地址
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001';
+// 根据环境选择服务器URL
+const SERVER_URL = process.env.NODE_ENV === 'production'
+  ? 'https://212.192.221.50:3001'  // 生产环境使用用户自己的服务器
+  : 'http://localhost:3001';  // 开发环境使用本地服务器
 
 class SocketService {
   constructor() {
@@ -15,8 +17,22 @@ class SocketService {
   connect() {
     if (this.socket) return;
 
-    this.socket = io(SERVER_URL);
+    // 添加Socket.IO连接选项
+    this.socket = io(SERVER_URL, {
+      transports: ['websocket', 'polling'],  // 优先使用WebSocket
+      secure: true,  // 启用安全连接
+      rejectUnauthorized: false,  // 允许自签名证书
+      withCredentials: true,  // 允许跨域携带凭证
+    });
     
+    // 添加连接错误处理
+    this.socket.on('connect_error', (error) => {
+      console.error('连接错误:', error);
+      if (this.callbacks.onError) {
+        this.callbacks.onError('连接服务器失败，请检查网络连接');
+      }
+    });
+
     this.socket.on('connect', () => {
       console.log('已连接到服务器');
       if (this.callbacks.onConnect) {

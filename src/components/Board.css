@@ -1,0 +1,36 @@
+.board-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.board-container {
+  touch-action: manipulation; /* 优化移动端触摸体验 */
+  -webkit-tap-highlight-color: transparent; /* 移除iOS点击高亮 */
+  user-select: none; /* 防止文本选择 */
+}
+
+/* 移动端优化 */
+@media (max-width: 480px) {
+  .board-wrapper {
+    padding: 5px;
+  }
+}
+
+/* 平板优化 */
+@media (min-width: 481px) and (max-width: 768px) {
+  .board-wrapper {
+    padding: 8px;
+  }
+}
+
+/* 确保在横屏模式下也能正常显示 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .board-wrapper {
+    padding: 5px;
+  }
+} 

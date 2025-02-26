@@ -1,10 +1,10 @@
 import React from 'react';
 
-const Square = ({ row, col, value, isLastMove, onClick }) => {
+const Square = ({ row, col, value, isLastMove, onClick, cellSize = 30 }) => {
   const squareStyle = {
     position: 'relative',
-    width: '30px',
-    height: '30px',
+    width: `${cellSize}px`,
+    height: `${cellSize}px`,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -12,8 +12,8 @@ const Square = ({ row, col, value, isLastMove, onClick }) => {
   };
 
   const pieceStyle = value ? {
-    width: '24px',
-    height: '24px',
+    width: `${Math.max(cellSize * 0.8, 12)}px`,
+    height: `${Math.max(cellSize * 0.8, 12)}px`,
     borderRadius: '50%',
     backgroundColor: value === 'B' ? '#000' : '#fff',
     border: value === 'W' ? '1px solid #000' : 'none',
@@ -23,8 +23,8 @@ const Square = ({ row, col, value, isLastMove, onClick }) => {
 
   const highlightStyle = isLastMove ? {
     position: 'absolute',
-    width: '10px',
-    height: '10px',
+    width: `${Math.max(cellSize * 0.3, 6)}px`,
+    height: `${Math.max(cellSize * 0.3, 6)}px`,
     borderRadius: '50%',
     backgroundColor: '#f00',
     zIndex: 2,

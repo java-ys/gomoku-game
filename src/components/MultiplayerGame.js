@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Board from './Board';
 import socketService from '../services/socketService';
 // eslint-disable-next-line no-unused-vars
 import { checkWin } from '../utils/aiLogic';
+import './MultiplayerGame.css';
 
 const MultiplayerGame = () => {
   const BOARD_SIZE = 15;
@@ -21,6 +23,8 @@ const MultiplayerGame = () => {
   const [message, setMessage] = useState('等待连接到服务器...');
   // eslint-disable-next-line no-unused-vars
   const [opponentConnected, setOpponentConnected] = useState(false);
+  const [inputRoomId, setInputRoomId] = useState('');
+  const [error, setError] = useState('');
   
   // 处理连接成功
   const handleConnect = () => {
@@ -59,36 +63,45 @@ const MultiplayerGame = () => {
   
   // 处理游戏胜利
   const handleGameWon = (data) => {
+    // eslint-disable-next-line no-unused-vars
     const { winner, winningLine } = data;
-    const isMyWin = (winner === 'black' && myPiece === 'B') || (winner === 'white' && myPiece === 'W');
     
-    setGameStatus(isMyWin ? 'player_win' : 'opponent_win');
-    setMessage(isMyWin ? '恭喜！你赢了！' : '对手赢了！再接再厉！');
+    if (winner === (myPiece === 'B' ? 'black' : 'white')) {
+      setGameStatus('player_win');
+    } else {
+      setGameStatus('opponent_win');
+    }
   };
   
   // 处理游戏重新开始
   const handleGameRestarted = () => {
     setBoard(initializeBoard());
-    setCurrentTurn(myPiece === 'B' ? socketService.socket.id : null);
-    setGameStatus('playing');
     setLastMove(null);
-    setMessage('游戏已重新开始！');
+    setGameStatus('playing');
+    
+    // 黑子先行
+    if (myPiece === 'B') {
+      setCurrentTurn(socketService.socket.id);
+    } else {
+      setCurrentTurn(null);
+    }
   };
   
-  // 处理对手离开
+  // 处理对手断开连接
   const handleOpponentDisconnected = () => {
-    setMessage('对手已离开游戏，等待新对手加入...');
+    setMessage('对手已离开游戏');
     setGameStatus('waiting');
     setOpponentConnected(false);
   };
   
   // 处理房间错误
   const handleRoomError = (errorMessage) => {
-    setMessage(`错误: ${errorMessage}`);
+    setError(errorMessage);
   };
   
-  // 连接到服务器
+  // 初始化Socket连接和事件监听
   useEffect(() => {
+    // 连接到服务器
     socketService.connect();
     
     // 注册事件处理函数
@@ -101,68 +114,77 @@ const MultiplayerGame = () => {
     socketService.on('onOpponentDisconnected', handleOpponentDisconnected);
     socketService.on('onRoomError', handleRoomError);
     
+    // 清理函数
     return () => {
       socketService.disconnect();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // 处理玩家点击
   const handleSquareClick = (row, col) => {
-    // 如果游戏未开始、已结束、不是玩家回合或位置已有棋子，则忽略点击
+    // 如果游戏未开始、不是玩家回合或格子已有棋子，则忽略点击
     if (
       gameStatus !== 'playing' || 
-      socketService.socket.id !== currentTurn || 
+      currentTurn !== socketService.socket.id || 
       board[row][col] !== null
     ) {
       return;
     }
     
-    // 更新本地棋盘
+    // 更新棋盘
     const newBoard = board.map(r => [...r]);
     newBoard[row][col] = myPiece;
     setBoard(newBoard);
     setLastMove({ row, col });
     
+    // 发送移动信息到服务器
+    socketService.makeMove(row, col);
+    
     // 更新当前回合
     setCurrentTurn(null);
-    
-    // 发送落子信息到服务器
-    socketService.makeMove(row, col);
   };
   
   // 创建房间
   const createRoom = async () => {
     try {
-      setMessage('正在创建房间...');
-      const response = await socketService.createRoom();
-      setRoomId(response.roomId);
-      setMyPiece(response.piece);
-      setCurrentTurn(response.currentTurn);
-      setMessage(`房间已创建，ID: ${response.roomId}，等待对手加入...`);
-    } catch (error) {
-      setMessage(`创建房间失败: ${error.message}`);
+      setError('');
+      const { roomId, piece } = await socketService.createRoom();
+      
+      setRoomId(roomId);
+      setMyPiece(piece);
+      setCurrentTurn(socketService.socket.id); // 创建者先行
+      setMessage(`已创建房间，房间ID: ${roomId}，等待对手加入...`);
+    } catch (err) {
+      setError(err.message || '创建房间失败');
     }
   };
   
   // 加入房间
   const joinRoom = async (roomIdToJoin) => {
     if (!roomIdToJoin) {
-      setMessage('请输入有效的房间ID');
+      setError('请输入房间ID');
       return;
     }
     
     try {
-      setMessage('正在加入房间...');
-      const response = await socketService.joinRoom(roomIdToJoin);
-      setRoomId(roomIdToJoin);
-      setMyPiece(response.piece);
-      setCurrentTurn(response.currentTurn);
-      setBoard(response.board);
+      setError('');
+      const { roomId, piece } = await socketService.joinRoom(roomIdToJoin);
+      
+      setRoomId(roomId);
+      setMyPiece(piece);
       setGameStatus('playing');
-      setOpponentConnected(true);
       setMessage('已加入房间，游戏开始！');
-    } catch (error) {
-      setMessage(`加入房间失败: ${error.message}`);
+      setOpponentConnected(true);
+      
+      // 白子后行
+      if (piece === 'W') {
+        setCurrentTurn(null);
+      } else {
+        setCurrentTurn(socketService.socket.id);
+      }
+    } catch (err) {
+      setError(err.message || '加入房间失败');
     }
   };
   
@@ -177,9 +199,9 @@ const MultiplayerGame = () => {
       case 'waiting':
         return message;
       case 'playing':
-        return currentTurn === socketService.socket?.id 
-          ? `你的回合（${myPiece === 'B' ? '黑子' : '白子'}）` 
-          : `对手回合（${myPiece === 'B' ? '白子' : '黑子'}）`;
+        return currentTurn === socketService.socket.id 
+          ? '你的回合' 
+          : '等待对手落子';
       case 'player_win':
         return '恭喜！你赢了！';
       case 'opponent_win':
@@ -187,90 +209,59 @@ const MultiplayerGame = () => {
       case 'draw':
         return '平局！';
       default:
-        return message;
+        return '等待连接...';
     }
   };
   
-  // 房间加入表单
-  const [inputRoomId, setInputRoomId] = useState('');
-  
-  const gameContainerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '20px',
-  };
-  
-  const statusStyle = {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: gameStatus !== 'playing' && gameStatus !== 'waiting' ? '#d32f2f' : '#333',
-  };
-  
-  const buttonStyle = {
-    padding: '10px 20px',
-    fontSize: '16px',
-    backgroundColor: '#4caf50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-    margin: '0 10px',
-  };
-  
-  const inputStyle = {
-    padding: '10px',
-    fontSize: '16px',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-    marginRight: '10px',
-  };
-  
-  const roomInfoStyle = {
-    padding: '10px',
-    backgroundColor: '#f5f5f5',
-    borderRadius: '4px',
-    marginBottom: '20px',
-    textAlign: 'center',
-  };
-  
   return (
-    <div style={gameContainerStyle}>
-      <div style={statusStyle}>{getStatusMessage()}</div>
+    <div className="multiplayer-game">
+      <h2>多人对战</h2>
+      
+      <Link to="/" className="back-link">返回主页</Link>
+      
+      <div className={`game-status ${gameStatus === 'player_win' ? 'winner' : ''}`}>
+        {getStatusMessage()}
+      </div>
       
       {roomId && (
-        <div style={roomInfoStyle}>
+        <div className="room-info">
+          <h3>房间信息</h3>
           <p>房间ID: <strong>{roomId}</strong></p>
           <p>你的棋子: <strong>{myPiece === 'B' ? '黑子' : '白子'}</strong></p>
+          {!opponentConnected && <p className="waiting-message">等待对手加入...</p>}
         </div>
       )}
       
       {!roomId && (
-        <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <button style={buttonStyle} onClick={createRoom}>
-            创建新房间
-          </button>
-          
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              type="text"
-              placeholder="输入房间ID"
-              value={inputRoomId}
-              onChange={(e) => setInputRoomId(e.target.value)}
-              style={inputStyle}
-            />
-            <button style={buttonStyle} onClick={() => joinRoom(inputRoomId)}>
-              加入房间
+        <div className="room-setup">
+          <div className="room-actions">
+            <button className="create-room-btn" onClick={createRoom}>
+              创建新房间
             </button>
+            
+            <div className="join-room">
+              <input
+                type="text"
+                placeholder="输入房间ID"
+                value={inputRoomId}
+                onChange={(e) => setInputRoomId(e.target.value)}
+              />
+              <button onClick={() => joinRoom(inputRoomId)}>
+                加入房间
+              </button>
+            </div>
+            
+            {error && <div className="error-message">{error}</div>}
           </div>
         </div>
       )}
       
-      <Board board={board} lastMove={lastMove} onClick={handleSquareClick} />
+      <div className="game-board">
+        <Board board={board} lastMove={lastMove} onClick={handleSquareClick} />
+      </div>
       
       {(gameStatus === 'player_win' || gameStatus === 'opponent_win' || gameStatus === 'draw') && (
-        <button style={buttonStyle} onClick={restartGame}>
+        <button className="restart-btn" onClick={restartGame}>
           重新开始
         </button>
       )}

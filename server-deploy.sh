@@ -1,6 +1,3 @@
-#!/bin/bash
-# 五子棋游戏后端部署脚本 - 自有服务器
-
 # 确保脚本在出错时停止执行
 set -e
 
@@ -18,8 +15,27 @@ if [ -d "~/gomoku-game/.git" ]; then
   cd ~/gomoku-game
   git pull
 else
-  echo "克隆代码..."
-  git clone https://github.com/java-ys/gomoku-game.git ~/gomoku-game
+  echo "目录已存在，初始化为Git仓库..."
+  # 检查目录是否存在
+  if [ -d "~/gomoku-game" ]; then
+    # 备份现有文件（如果需要）
+    echo "备份现有文件..."
+    timestamp=$(date +%Y%m%d%H%M%S)
+    mkdir -p ~/gomoku-backup-$timestamp
+    cp -r ~/gomoku-game/* ~/gomoku-backup-$timestamp/ 2>/dev/null || true
+    
+    # 清空目录
+    echo "清空目录..."
+    rm -rf ~/gomoku-game/*
+    
+    # 克隆代码
+    echo "克隆代码到现有目录..."
+    cd ~/gomoku-game
+    git clone https://github.com/java-ys/gomoku-game.git .
+  else
+    echo "克隆代码..."
+    git clone https://github.com/java-ys/gomoku-game.git ~/gomoku-game
+  fi
 fi
 
 # 安装依赖
@@ -75,8 +91,11 @@ fi
 pm2 save
 pm2 startup
 
-# 配置防火墙
+# 配置防火墙（这里禁用set -e）
 echo "正在配置防火墙..."
+
+set +e  # 禁用 set -e，避免防火墙配置失败导致脚本中断
+
 if command -v firewall-cmd &> /dev/null; then
   # CentOS
   sudo firewall-cmd --zone=public --add-port=3001/tcp --permanent
@@ -84,12 +103,39 @@ if command -v firewall-cmd &> /dev/null; then
   echo "防火墙已配置（CentOS）"
 elif command -v ufw &> /dev/null; then
   # Ubuntu
+  # 确保防火墙已启用
+  if ! sudo ufw status | grep -q "active"; then
+    echo "启用防火墙..."
+    sudo ufw --force enable
+  fi
   sudo ufw allow 3001/tcp
-  sudo ufw reload
+  sudo ufw reload  # 确保配置生效
   echo "防火墙已配置（Ubuntu）"
+elif command -v iptables &> /dev/null; then
+  # 通用Linux
+  sudo iptables -A INPUT -p tcp --dport 3001 -j ACCEPT
+  sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT  # 确保SSH访问
+  
+  # 保存iptables规则（根据发行版不同可能需要调整）
+  if [ -f /etc/debian_version ]; then
+    # Debian/Ubuntu
+    sudo apt-get update
+    sudo apt-get install -y iptables-persistent
+    sudo netfilter-persistent save
+  elif [ -f /etc/redhat-release ]; then
+    # CentOS/RHEL
+    sudo service iptables save
+  else
+    echo "无法自动保存iptables规则，请手动保存"
+  fi
+  
+  echo "防火墙已配置（iptables）"
 else
-  echo "无法识别的防火墙系统，请手动开放3001端口"
+  echo "未检测到防火墙系统，跳过防火墙配置"
+  echo "请确保端口3001已开放，或手动配置防火墙"
 fi
+
+set -e  # 恢复 set -e
 
 # 配置Nginx（如果需要）
 echo "是否配置Nginx反向代理？(y/n)"
@@ -144,4 +190,4 @@ echo "后端服务运行在: http://212.192.221.50:3001"
 echo "可以通过以下命令查看服务状态："
 echo "  pm2 status"
 echo "可以通过以下命令查看日志："
-echo "  pm2 logs gomoku-backend" 
+echo "  pm2 logs gomoku-backend"

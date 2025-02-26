@@ -1,15 +1,13 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 import Home from './components/Home';
 import Game from './components/Game';
 import MultiplayerGame from './components/MultiplayerGame';
 
 function App() {
-  const basename = process.env.NODE_ENV === 'production' ? '/gomoku-game' : '';
-
   return (
-    <Router basename={basename}>
+    <Router>
       <div className="App">
         <header className="App-header">
           <h1>
@@ -21,7 +19,7 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/ai" element={<Game />} />
+            <Route path="/game" element={<Game />} />
             <Route path="/multiplayer" element={<MultiplayerGame />} />
           </Routes>
         </main>
