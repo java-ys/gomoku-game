@@ -7,6 +7,15 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
+// SSL证书配置
+const sslOptions = {
+  key: fs.readFileSync('/etc/nginx/ssl/nginx.key'),
+  cert: fs.readFileSync('/etc/nginx/ssl/nginx.crt')
+};
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
 // CORS配置
 const corsOptions = {
   origin: function (origin, callback) {
@@ -31,9 +40,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-
 app.use(cors(corsOptions));
 
 // 添加健康检查端点
@@ -46,11 +52,11 @@ app.get('/', (req, res) => {
   res.status(200).send('Gomoku Game Server is running');
 });
 
-// 创建HTTP服务器
-const httpServer = http.createServer(app);
+// 创建HTTPS服务器
+const httpsServer = https.createServer(sslOptions, app);
 
 // 配置Socket.IO
-const io = new Server(httpServer, {
+const io = new Server(httpsServer, {
   cors: corsOptions,
   pingTimeout: 60000,
   pingInterval: 25000,
@@ -182,8 +188,8 @@ io.on('connection', (socket) => {
 });
 
 // 启动服务器
-httpServer.listen(PORT, () => {
-  console.log(`服务器运行在端口 ${PORT}`);
+httpsServer.listen(PORT, () => {
+  console.log(`HTTPS服务器运行在端口 ${PORT}`);
 });
 
 // 生成房间ID
@@ -198,4 +204,4 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('未处理的Promise拒绝:', reason);
-}); 
+});
