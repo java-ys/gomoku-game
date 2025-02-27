@@ -21,15 +21,6 @@ const Home = () => {
           <li>黑方先行，双方轮流在棋盘空位落子</li>
           <li>先在横、竖或斜方向形成连续五子一线的一方获胜</li>
         </ul>
-        <div className="update-info">
-          <p>最近更新：{new Date().toLocaleString()}</p>
-          <p>新增功能：</p>
-          <ul>
-            <li>优化移动端显示效果</li>
-            <li>改进多人对战连接稳定性</li>
-            <li>添加游戏音效</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
