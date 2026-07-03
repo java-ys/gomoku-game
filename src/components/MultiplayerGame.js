@@ -48,6 +48,7 @@ const MultiplayerGame = () => {
 
   const handleConnect = useCallback(() => {
     setMessage('已连接到服务器，等待创建或加入房间...');
+    setError('');
   }, []);
   
   const handleDisconnect = useCallback(() => {
@@ -106,6 +107,10 @@ const MultiplayerGame = () => {
   }, []);
 
   const handleSocketError = useCallback((errorMessage) => {
+    if (socketService.isConnected()) {
+      return;
+    }
+
     setError(errorMessage);
     setMessage(errorMessage);
   }, []);

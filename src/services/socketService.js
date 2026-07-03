@@ -18,9 +18,7 @@ class SocketService {
   connect() {
     if (this.socket) return this.socket;
 
-    this.socket = io(SERVER_URL, {
-      transports: ['websocket', 'polling'],
-    });
+    this.socket = io(SERVER_URL);
     
     // 添加连接错误处理
     this.socket.on('connect_error', (error) => {
