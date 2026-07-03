@@ -22,7 +22,7 @@
 6. 等待部署完成，Render会提供后端服务的URL（例如：`https://gomoku-game-backend.onrender.com`）
 7. **记下这个URL，后面需要用到**
 
-Render会通过环境变量提供运行端口，应用代码会读取`process.env.PORT`。TLS/HTTPS由Render平台处理，Node服务本身不需要读取证书文件。
+`render.yaml` 已指定 `plan: free`。Render会通过环境变量提供运行端口，应用代码会读取`process.env.PORT`。TLS/HTTPS由Render平台处理，Node服务本身不需要读取证书文件。
 
 #### 方法二：手动部署
 
@@ -36,6 +36,7 @@ Render会通过环境变量提供运行端口，应用代码会读取`process.en
    - Environment: `Node`
    - Build Command: `cd server && npm install`
    - Start Command: `cd server && npm start`
+   - Instance Type: `Free`
    - 添加环境变量：
      - `NODE_ENV`: `production`
      - `FRONTEND_URL`: `https://你的GitHub用户名.github.io/gomoku-game`
