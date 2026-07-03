@@ -4,10 +4,6 @@
   "description": "A Gomoku (Five in a Row) game with AI opponent and online multiplayer",
   "private": true,
   "homepage": "https://java-ys.github.io/gomoku-game",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/java-ys/gomoku-game.git"
-  },
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
@@ -24,7 +20,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
+    "predeploy": "npm run build", 
     "deploy": "gh-pages -d build "
   },
   "eslintConfig": {
@@ -43,7 +39,7 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
-    ]
+      ]
   },
   "devDependencies": {
     "gh-pages": "^6.3.0"

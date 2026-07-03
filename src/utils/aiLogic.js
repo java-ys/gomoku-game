@@ -158,11 +158,13 @@ const evaluatePosition = (board, row, col, player) => {
   
   // 评估四个方向的棋型
   for (const { dr, dc } of directions) {
-    const pattern = getPattern(board, row, col, dr, dc, 4, player);
+    tempBoard[row][col] = player;
+    const pattern = getPattern(tempBoard, row, col, dr, dc, 4, player);
     score += evaluatePattern(pattern, player);
     
     // 评估防守
-    const opponentPattern = getPattern(board, row, col, dr, dc, 4, opponent);
+    tempBoard[row][col] = opponent;
+    const opponentPattern = getPattern(tempBoard, row, col, dr, dc, 4, opponent);
     score += evaluatePattern(opponentPattern, opponent) * 0.8;
   }
   
@@ -264,5 +266,6 @@ export const makeAiMove = (board, player) => {
   const bestMoves = possibleMoves.filter(move => move.score === highestScore);
   
   const randomIndex = Math.floor(Math.random() * bestMoves.length);
-  return bestMoves[randomIndex];
+  const { row, col } = bestMoves[randomIndex];
+  return { row, col };
 }; 

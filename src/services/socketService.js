@@ -1,9 +1,10 @@
 import { io } from 'socket.io-client';
 
 // 根据环境选择服务器URL
-const SERVER_URL = process.env.NODE_ENV === 'production'
-  ? 'https://212.192.221.50:3001'  // 生产环境使用用户自己的服务器
-  : 'http://localhost:3001';  // 开发环境使用本地服务器
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001';
+const REQUEST_TIMEOUT = 5000;
+
+const emptyBoard = () => Array(15).fill(null).map(() => Array(15).fill(null));
 
 class SocketService {
   constructor() {
@@ -15,14 +16,10 @@ class SocketService {
 
   // 连接到服务器
   connect() {
-    if (this.socket) return;
+    if (this.socket) return this.socket;
 
-    // 添加Socket.IO连接选项
     this.socket = io(SERVER_URL, {
-      transports: ['websocket', 'polling'],  // 优先使用WebSocket
-      secure: true,  // 启用安全连接
-      rejectUnauthorized: false,  // 允许自签名证书
-      withCredentials: true,  // 允许跨域携带凭证
+      transports: ['websocket', 'polling'],
     });
     
     // 添加连接错误处理
@@ -68,10 +65,10 @@ class SocketService {
       }
     });
 
-    this.socket.on('opponentJoined', () => {
+    this.socket.on('opponentJoined', (data) => {
       console.log('对手加入了游戏');
       if (this.callbacks.onOpponentJoined) {
-        this.callbacks.onOpponentJoined();
+        this.callbacks.onOpponentJoined(data);
       }
     });
 
@@ -89,10 +86,17 @@ class SocketService {
       }
     });
 
-    this.socket.on('gameRestarted', () => {
+    this.socket.on('gameRestarted', (data) => {
       console.log('游戏重新开始');
       if (this.callbacks.onGameRestarted) {
-        this.callbacks.onGameRestarted();
+        this.callbacks.onGameRestarted(data);
+      }
+    });
+
+    this.socket.on('gameDraw', (data) => {
+      console.log('游戏平局:', data);
+      if (this.callbacks.onGameDraw) {
+        this.callbacks.onGameDraw(data);
       }
     });
 
@@ -102,6 +106,8 @@ class SocketService {
         this.callbacks.onOpponentDisconnected();
       }
     });
+
+    return this.socket;
   }
 
   // 断开连接
@@ -116,78 +122,64 @@ class SocketService {
 
   // 创建游戏房间
   createRoom() {
-    return new Promise((resolve, reject) => {
-      if (!this.socket) {
-        this.connect();
-      }
-
-      // 设置一次性监听器来处理房间创建响应
-      this.socket.once('roomCreated', (roomId) => {
-        this.roomId = roomId;
-        this.piece = 'B'; // 创建者使用黑子
-        resolve({
-          roomId,
-          piece: 'B',
-          currentTurn: this.socket.id
-        });
-      });
-
-      // 设置一次性监听器来处理错误
-      this.socket.once('roomError', (errorMessage) => {
-        reject(new Error(errorMessage || '创建房间失败'));
-      });
-
-      // 发送创建房间请求
-      this.socket.emit('createRoom');
+    return this.emitWithAck('createRoom').then((response) => {
+      this.roomId = response.roomId;
+      this.piece = response.piece;
+      return response;
     });
   }
 
   // 加入游戏房间
   joinRoom(roomId) {
-    return new Promise((resolve, reject) => {
-      if (!this.socket) {
-        this.connect();
-      }
-
-      // 设置一次性监听器来处理加入房间响应
-      this.socket.once('joinedRoom', (data) => {
-        this.roomId = roomId;
-        this.piece = 'W'; // 加入者使用白子
-        resolve({
-          roomId,
-          piece: 'W',
-          currentTurn: data.currentTurn || null,
-          board: data.board || Array(15).fill(null).map(() => Array(15).fill(null))
-        });
-      });
-
-      // 设置一次性监听器来处理错误
-      this.socket.once('roomError', (errorMessage) => {
-        reject(new Error(errorMessage || '加入房间失败'));
-      });
-
-      // 发送加入房间请求
-      this.socket.emit('joinRoom', roomId);
+    return this.emitWithAck('joinRoom', roomId.trim().toUpperCase()).then((response) => {
+      this.roomId = response.roomId;
+      this.piece = response.piece;
+      return {
+        ...response,
+        board: response.board || emptyBoard(),
+      };
     });
   }
 
   // 发送落子信息
   makeMove(row, col) {
-    if (!this.socket || !this.roomId) return;
-
-    this.socket.emit('makeMove', {
+    return this.emitWithAck('makeMove', {
       roomId: this.roomId,
       row,
       col,
-      color: this.piece === 'B' ? 'black' : 'white'
+      color: this.piece === 'B' ? 'black' : 'white',
     });
   }
 
   // 重新开始游戏
   restartGame() {
-    if (!this.socket || !this.roomId) return;
+    return this.emitWithAck('restartGame', this.roomId);
+  }
 
-    this.socket.emit('restartGame', this.roomId);
+  emitWithAck(event, payload) {
+    const socket = this.connect();
+
+    return new Promise((resolve, reject) => {
+      const ack = (error, response) => {
+        if (error) {
+          reject(new Error('服务器响应超时，请稍后重试'));
+          return;
+        }
+
+        if (!response || response.ok === false) {
+          reject(new Error(response?.error || '请求失败'));
+          return;
+        }
+
+        resolve(response);
+      };
+
+      if (typeof payload === 'undefined') {
+        socket.timeout(REQUEST_TIMEOUT).emit(event, ack);
+      } else {
+        socket.timeout(REQUEST_TIMEOUT).emit(event, payload, ack);
+      }
+    });
   }
 
   // 注册回调函数

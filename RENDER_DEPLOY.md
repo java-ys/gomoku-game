@@ -22,6 +22,8 @@
 6. 等待部署完成，Render会提供后端服务的URL（例如：`https://gomoku-game-backend.onrender.com`）
 7. **记下这个URL，后面需要用到**
 
+Render会通过环境变量提供运行端口，应用代码会读取`process.env.PORT`。TLS/HTTPS由Render平台处理，Node服务本身不需要读取证书文件。
+
 #### 方法二：手动部署
 
 如果你不想使用Blueprint，也可以手动部署后端服务：
@@ -35,7 +37,6 @@
    - Build Command: `cd server && npm install`
    - Start Command: `cd server && npm start`
    - 添加环境变量：
-     - `PORT`: `3001`
      - `NODE_ENV`: `production`
      - `FRONTEND_URL`: `https://你的GitHub用户名.github.io/gomoku-game`
 5. 点击"Create Web Service"按钮开始部署
@@ -100,6 +101,7 @@
 2. 确保后端服务正常运行
 3. 检查浏览器控制台是否有CORS错误
 4. 确保后端服务的CORS配置允许来自GitHub Pages的请求
+5. 确保前端是在设置`REACT_APP_SERVER_URL`之后重新构建的；Create React App 会在构建时注入该变量
 
 ### 游戏房间无法创建
 

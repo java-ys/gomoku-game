@@ -40,7 +40,7 @@
    ```
 
 5. 按照脚本提示完成部署
-6. 部署完成后，后端服务将运行在 `http://212.192.221.50:3001`
+6. 部署完成后，后端服务将在服务器内监听 `http://localhost:3001`。推荐通过Nginx反向代理暴露为 `https://你的域名`
 
 #### 方法二：手动部署
 
@@ -101,7 +101,7 @@
 1. 打开项目根目录下的`.env.production`文件
 2. 将`REACT_APP_SERVER_URL`的值设置为自有服务器上的后端服务URL：
    ```
-   REACT_APP_SERVER_URL=http://212.192.221.50:3001
+   REACT_APP_SERVER_URL=https://你的域名
    ```
 3. 保存文件并提交到GitHub仓库
 
@@ -150,7 +150,7 @@
 
 1. 确保`.env.production`文件中的`REACT_APP_SERVER_URL`设置正确
 2. 确保后端服务正常运行（可以使用`pm2 status`查看）
-3. 检查服务器防火墙是否开放了3001端口
+3. 如果直接暴露Node服务，检查服务器防火墙是否开放了3001端口；如果使用Nginx反向代理，检查80/443端口和代理配置
 4. 检查浏览器控制台是否有CORS错误
 5. 确保后端服务的CORS配置允许来自GitHub Pages的请求
 
@@ -185,7 +185,7 @@ pm2 restart gomoku-backend
 
 ## 使用Nginx作为反向代理（可选）
 
-如果你想使用Nginx作为反向代理，可以按照以下步骤操作：
+推荐使用Nginx作为反向代理，由Nginx处理公网HTTP/HTTPS和WebSocket升级，Node服务只监听本机3001端口。
 
 1. 安装Nginx：
    ```bash
@@ -205,7 +205,7 @@ pm2 restart gomoku-backend
    ```nginx
    server {
        listen 80;
-       server_name 212.192.221.50;  # 替换为你的域名，如果没有域名可以使用服务器IP
+       server_name 你的域名;  # 替换为你的域名
        
        location / {
            proxy_pass http://localhost:3001;
@@ -213,6 +213,8 @@ pm2 restart gomoku-backend
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection 'upgrade';
            proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
            proxy_cache_bypass $http_upgrade;
        }
    }
@@ -227,6 +229,8 @@ pm2 restart gomoku-backend
 5. 配置SSL证书（推荐）：
    - 可以使用Let's Encrypt的免费证书
    - 或者使用其他SSL证书提供商
+
+完成反向代理后，前端的 `REACT_APP_SERVER_URL` 应使用 `https://你的域名`，后端的 `FRONTEND_URL` 应填写前端页面地址。
 
 ## 监控和日志
 

@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Board from './Board';
 import socketService from '../services/socketService';
-// eslint-disable-next-line no-unused-vars
-import { checkWin } from '../utils/aiLogic';
 import './MultiplayerGame.css';
 
+const BOARD_SIZE = 15;
+
+const initializeBoard = () => {
+  return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+};
+
+const getSocketId = () => socketService.socket?.id;
+
+const pieceToColor = (piece) => piece === 'B' ? 'black' : 'white';
+
 const MultiplayerGame = () => {
-  const BOARD_SIZE = 15;
-  
-  // 初始化空棋盘
-  const initializeBoard = () => {
-    return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
-  };
-  
   const [board, setBoard] = useState(initializeBoard());
   const [myPiece, setMyPiece] = useState(null); // 'B' 或 'W'
   const [currentTurn, setCurrentTurn] = useState(null); // socket.id
@@ -21,139 +22,170 @@ const MultiplayerGame = () => {
   const [lastMove, setLastMove] = useState(null);
   const [roomId, setRoomId] = useState(null);
   const [message, setMessage] = useState('等待连接到服务器...');
-  // eslint-disable-next-line no-unused-vars
   const [opponentConnected, setOpponentConnected] = useState(false);
   const [inputRoomId, setInputRoomId] = useState('');
   const [error, setError] = useState('');
+  const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+  const myPieceRef = useRef(myPiece);
   
-  // 处理连接成功
-  const handleConnect = () => {
+  const applyRoomState = useCallback((data = {}) => {
+    if (data.board) {
+      setBoard(data.board);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'currentTurn')) {
+      setCurrentTurn(data.currentTurn);
+    }
+
+    if (data.lastMove) {
+      setLastMove(data.lastMove);
+    }
+  }, []);
+
+  useEffect(() => {
+    myPieceRef.current = myPiece;
+  }, [myPiece]);
+
+  const handleConnect = useCallback(() => {
     setMessage('已连接到服务器，等待创建或加入房间...');
-  };
+  }, []);
   
-  // 处理断开连接
-  const handleDisconnect = () => {
+  const handleDisconnect = useCallback(() => {
     setMessage('与服务器断开连接，请刷新页面重试');
     setGameStatus('waiting');
     setOpponentConnected(false);
-  };
+    setCurrentTurn(null);
+  }, []);
   
-  // 处理对手加入
-  const handleOpponentJoined = () => {
+  const handleOpponentJoined = useCallback((data = {}) => {
+    applyRoomState(data);
     setMessage('对手已加入，游戏开始！');
     setGameStatus('playing');
     setOpponentConnected(true);
-  };
+  }, [applyRoomState]);
   
-  // 处理对手移动
-  const handleOpponentMove = (data) => {
-    const { row, col, color } = data;
-    
-    // 更新棋盘
-    setBoard(prevBoard => {
-      const newBoard = prevBoard.map(r => [...r]);
-      newBoard[row][col] = color === 'black' ? 'B' : 'W';
-      return newBoard;
-    });
-    setLastMove({ row, col });
-    
-    // 更新当前回合
-    setCurrentTurn(socketService.socket.id);
-  };
+  const handleOpponentMove = useCallback((data) => {
+    applyRoomState(data);
+  }, [applyRoomState]);
   
-  // 处理游戏胜利
-  const handleGameWon = (data) => {
-    // eslint-disable-next-line no-unused-vars
-    const { winner, winningLine } = data;
+  const handleGameWon = useCallback((data) => {
+    const { winner } = data;
+    const myColor = pieceToColor(myPieceRef.current);
     
-    if (winner === (myPiece === 'B' ? 'black' : 'white')) {
+    applyRoomState(data);
+
+    if (winner === myColor) {
       setGameStatus('player_win');
     } else {
       setGameStatus('opponent_win');
     }
-  };
+  }, [applyRoomState]);
+
+  const handleGameDraw = useCallback((data) => {
+    applyRoomState(data);
+    setGameStatus('draw');
+  }, [applyRoomState]);
   
-  // 处理游戏重新开始
-  const handleGameRestarted = () => {
+  const handleGameRestarted = useCallback((data = {}) => {
     setBoard(initializeBoard());
     setLastMove(null);
+    applyRoomState(data);
     setGameStatus('playing');
-    
-    // 黑子先行
-    if (myPiece === 'B') {
-      setCurrentTurn(socketService.socket.id);
-    } else {
-      setCurrentTurn(null);
-    }
-  };
+    setError('');
+  }, [applyRoomState]);
   
-  // 处理对手断开连接
-  const handleOpponentDisconnected = () => {
+  const handleOpponentDisconnected = useCallback(() => {
     setMessage('对手已离开游戏');
     setGameStatus('waiting');
     setOpponentConnected(false);
-  };
+    setCurrentTurn(null);
+  }, []);
   
-  // 处理房间错误
-  const handleRoomError = (errorMessage) => {
+  const handleRoomError = useCallback((errorMessage) => {
     setError(errorMessage);
-  };
+  }, []);
+
+  const handleSocketError = useCallback((errorMessage) => {
+    setError(errorMessage);
+    setMessage(errorMessage);
+  }, []);
   
   // 初始化Socket连接和事件监听
   useEffect(() => {
-    // 连接到服务器
-    socketService.connect();
-    
     // 注册事件处理函数
     socketService.on('onConnect', handleConnect);
     socketService.on('onDisconnect', handleDisconnect);
     socketService.on('onOpponentJoined', handleOpponentJoined);
     socketService.on('onOpponentMove', handleOpponentMove);
     socketService.on('onGameWon', handleGameWon);
+    socketService.on('onGameDraw', handleGameDraw);
     socketService.on('onGameRestarted', handleGameRestarted);
     socketService.on('onOpponentDisconnected', handleOpponentDisconnected);
     socketService.on('onRoomError', handleRoomError);
+    socketService.on('onError', handleSocketError);
+
+    // 连接到服务器
+    socketService.connect();
     
     // 清理函数
     return () => {
       socketService.disconnect();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    handleConnect,
+    handleDisconnect,
+    handleOpponentJoined,
+    handleOpponentMove,
+    handleGameWon,
+    handleGameDraw,
+    handleGameRestarted,
+    handleOpponentDisconnected,
+    handleRoomError,
+    handleSocketError,
+  ]);
   
   // 处理玩家点击
-  const handleSquareClick = (row, col) => {
+  const handleSquareClick = async (row, col) => {
     // 如果游戏未开始、不是玩家回合或格子已有棋子，则忽略点击
     if (
       gameStatus !== 'playing' || 
-      currentTurn !== socketService.socket.id || 
-      board[row][col] !== null
+      currentTurn !== getSocketId() ||
+      board[row][col] !== null ||
+      isSubmittingMove
     ) {
       return;
     }
-    
-    // 更新棋盘
-    const newBoard = board.map(r => [...r]);
-    newBoard[row][col] = myPiece;
-    setBoard(newBoard);
-    setLastMove({ row, col });
-    
-    // 发送移动信息到服务器
-    socketService.makeMove(row, col);
-    
-    // 更新当前回合
-    setCurrentTurn(null);
+
+    try {
+      setError('');
+      setIsSubmittingMove(true);
+      const response = await socketService.makeMove(row, col);
+      applyRoomState(response);
+
+      if (response.status === 'won') {
+        handleGameWon(response);
+      } else if (response.status === 'draw') {
+        handleGameDraw(response);
+      }
+    } catch (err) {
+      setError(err.message || '落子失败');
+    } finally {
+      setIsSubmittingMove(false);
+    }
   };
   
   // 创建房间
   const createRoom = async () => {
     try {
       setError('');
-      const { roomId, piece } = await socketService.createRoom();
+      const response = await socketService.createRoom();
+      const { roomId, piece } = response;
       
+      applyRoomState(response);
       setRoomId(roomId);
       setMyPiece(piece);
-      setCurrentTurn(socketService.socket.id); // 创建者先行
+      setGameStatus('waiting');
+      setOpponentConnected(false);
       setMessage(`已创建房间，房间ID: ${roomId}，等待对手加入...`);
     } catch (err) {
       setError(err.message || '创建房间失败');
@@ -169,28 +201,29 @@ const MultiplayerGame = () => {
     
     try {
       setError('');
-      const { roomId, piece } = await socketService.joinRoom(roomIdToJoin);
+      const response = await socketService.joinRoom(roomIdToJoin);
+      const { roomId, piece } = response;
       
+      applyRoomState(response);
       setRoomId(roomId);
       setMyPiece(piece);
       setGameStatus('playing');
       setMessage('已加入房间，游戏开始！');
       setOpponentConnected(true);
-      
-      // 白子后行
-      if (piece === 'W') {
-        setCurrentTurn(null);
-      } else {
-        setCurrentTurn(socketService.socket.id);
-      }
     } catch (err) {
       setError(err.message || '加入房间失败');
     }
   };
   
   // 重新开始游戏
-  const restartGame = () => {
-    socketService.restartGame();
+  const restartGame = async () => {
+    try {
+      setError('');
+      const response = await socketService.restartGame();
+      handleGameRestarted(response);
+    } catch (err) {
+      setError(err.message || '重新开始失败');
+    }
   };
   
   // 游戏状态信息
@@ -199,8 +232,11 @@ const MultiplayerGame = () => {
       case 'waiting':
         return message;
       case 'playing':
-        return currentTurn === socketService.socket.id 
-          ? '你的回合' 
+        if (isSubmittingMove) {
+          return '正在落子...';
+        }
+        return currentTurn === getSocketId()
+          ? '你的回合'
           : '等待对手落子';
       case 'player_win':
         return '恭喜！你赢了！';

@@ -7,7 +7,7 @@
 游戏已部署到GitHub Pages，可以通过以下链接访问：
 [https://java-ys.github.io/gomoku-game](https://java-ys.github.io/gomoku-game)
 
-后端服务已部署到Render，为多人游戏提供支持：
+后端服务部署到Render，为多人游戏提供支持：
 [https://gomoku-game-backend.onrender.com](https://gomoku-game-backend.onrender.com)
 
 ## 功能特点
@@ -51,6 +51,12 @@
 3. 启动服务器：`npm start`
 4. 服务器将在 `http://localhost:3001` 运行
 
+多人游戏前端默认连接 `http://localhost:3001`。生产构建前请在 `.env.production` 中设置：
+
+```env
+REACT_APP_SERVER_URL=https://你的后端服务地址
+```
+
 ## 多人游戏使用方法
 
 1. 在主页选择"双人对战"模式
@@ -67,7 +73,8 @@
 
 本项目采用以下部署架构：
 - 前端：部署到GitHub Pages，提供静态资源服务
-- 后端：部署到自有服务器，提供WebSocket服务和游戏逻辑
+- 后端：部署到Render或自有服务器，提供Socket.IO服务和游戏逻辑
+- HTTPS：推荐由Render、Nginx或云负载均衡终止TLS，Node应用自身监听HTTP端口
 
 ### 部署到GitHub Pages
 

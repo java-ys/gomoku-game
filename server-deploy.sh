@@ -3,44 +3,46 @@ set -e
 
 echo "开始部署五子棋游戏后端..."
 
+APP_DIR="$HOME/gomoku-game"
+
 # 创建项目目录（如果不存在）
-if [ ! -d "~/gomoku-game" ]; then
+if [ ! -d "$APP_DIR" ]; then
   echo "创建项目目录..."
-  mkdir -p ~/gomoku-game
+  mkdir -p "$APP_DIR"
 fi
 
 # 克隆或更新代码
-if [ -d "~/gomoku-game/.git" ]; then
+if [ -d "$APP_DIR/.git" ]; then
   echo "更新代码..."
-  cd ~/gomoku-game
+  cd "$APP_DIR"
   git pull
 else
   echo "目录已存在，初始化为Git仓库..."
   # 检查目录是否存在
-  if [ -d "~/gomoku-game" ]; then
+  if [ -d "$APP_DIR" ]; then
     # 备份现有文件（如果需要）
     echo "备份现有文件..."
     timestamp=$(date +%Y%m%d%H%M%S)
-    mkdir -p ~/gomoku-backup-$timestamp
-    cp -r ~/gomoku-game/* ~/gomoku-backup-$timestamp/ 2>/dev/null || true
+    mkdir -p "$HOME/gomoku-backup-$timestamp"
+    cp -r "$APP_DIR"/* "$HOME/gomoku-backup-$timestamp"/ 2>/dev/null || true
     
     # 清空目录
     echo "清空目录..."
-    rm -rf ~/gomoku-game/*
+    rm -rf "$APP_DIR"/*
     
     # 克隆代码
     echo "克隆代码到现有目录..."
-    cd ~/gomoku-game
+    cd "$APP_DIR"
     git clone https://github.com/java-ys/gomoku-game.git .
   else
     echo "克隆代码..."
-    git clone https://github.com/java-ys/gomoku-game.git ~/gomoku-game
+    git clone https://github.com/java-ys/gomoku-game.git "$APP_DIR"
   fi
 fi
 
 # 安装依赖
 echo "正在安装依赖..."
-cd ~/gomoku-game/server
+cd "$APP_DIR/server"
 npm install
 
 # 配置环境变量
@@ -51,7 +53,7 @@ NODE_ENV=production
 FRONTEND_URL=https://java-ys.github.io/gomoku-game
 EOL
 
-echo "环境变量已配置。如需修改，请编辑 ~/gomoku-game/server/.env 文件"
+echo "环境变量已配置。如需修改，请编辑 $APP_DIR/server/.env 文件"
 
 # 配置PM2
 echo "正在配置PM2..."
@@ -98,7 +100,8 @@ set +e  # 禁用 set -e，避免防火墙配置失败导致脚本中断
 
 if command -v firewall-cmd &> /dev/null; then
   # CentOS
-  sudo firewall-cmd --zone=public --add-port=3001/tcp --permanent
+  sudo firewall-cmd --zone=public --add-service=http --permanent
+  sudo firewall-cmd --zone=public --add-service=https --permanent
   sudo firewall-cmd --reload
   echo "防火墙已配置（CentOS）"
 elif command -v ufw &> /dev/null; then
@@ -108,12 +111,14 @@ elif command -v ufw &> /dev/null; then
     echo "启用防火墙..."
     sudo ufw --force enable
   fi
-  sudo ufw allow 3001/tcp
+  sudo ufw allow 80/tcp
+  sudo ufw allow 443/tcp
   sudo ufw reload  # 确保配置生效
   echo "防火墙已配置（Ubuntu）"
 elif command -v iptables &> /dev/null; then
   # 通用Linux
-  sudo iptables -A INPUT -p tcp --dport 3001 -j ACCEPT
+  sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+  sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
   sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT  # 确保SSH访问
   
   # 保存iptables规则（根据发行版不同可能需要调整）
@@ -171,6 +176,8 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
     }
 }
@@ -186,7 +193,8 @@ EOL
 fi
 
 echo "部署完成！"
-echo "后端服务运行在: http://212.192.221.50:3001"
+echo "Node服务监听在: http://localhost:3001"
+echo "公网访问请使用Nginx反向代理地址，例如: https://你的域名"
 echo "可以通过以下命令查看服务状态："
 echo "  pm2 status"
 echo "可以通过以下命令查看日志："

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: gomoku-game-backend
+    env: node
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://java-ys.github.io/gomoku-game

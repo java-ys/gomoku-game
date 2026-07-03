@@ -20,7 +20,7 @@
    ```
 4. 在项目根目录创建或修改 `.env.production` 文件，设置后端服务URL：
    ```
-   REACT_APP_SERVER_URL=http://你的服务器IP:3001
+   REACT_APP_SERVER_URL=https://你的域名
    ```
    如果有域名，可以使用域名：
    ```
@@ -70,7 +70,7 @@
    sudo ufw allow 3001/tcp
    sudo ufw reload
    ```
-8. 如果有域名，可以配置域名解析到服务器IP，并配置Nginx反向代理
+8. 推荐配置域名解析到服务器IP，并使用Nginx反向代理；Node服务只监听本机3001端口
 
 ### 3. 配置Nginx反向代理（可选，如果有域名）
 
@@ -102,6 +102,8 @@
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection 'upgrade';
            proxy_set_header Host $host;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
            proxy_cache_bypass $http_upgrade;
        }
    }
@@ -133,7 +135,7 @@
 
 1. 确保`.env.production`文件中的`REACT_APP_SERVER_URL`设置正确
 2. 确保后端服务正常运行（可以使用`pm2 status`查看）
-3. 检查服务器防火墙是否开放了3001端口
+3. 如果直接暴露Node服务，检查服务器防火墙是否开放了3001端口；如果使用Nginx反向代理，检查80/443端口和代理配置
 4. 检查浏览器控制台是否有CORS错误
 5. 确保后端服务的CORS配置允许来自Gitee Pages的请求
 
